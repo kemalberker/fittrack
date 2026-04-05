@@ -1,6 +1,6 @@
 // FitTrack Pro - Service Worker
 // Bu dosyayı her güncellemede versiyon numarasını değiştir → iPhone otomatik güncellenir
-var CACHE_VERSION = 'fittrack-v2';
+var CACHE_VERSION = 'fittrack-v3';
 var CACHE_FILES = ['/'];
 
 // Kurulum: önbelleğe al
