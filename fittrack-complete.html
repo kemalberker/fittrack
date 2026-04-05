@@ -578,14 +578,47 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <!-- Porsiyon -->
 <div class="overlay mid" id="qty-overlay">
   <div class="sheet" onclick="event.stopPropagation()">
-    <div style="font-size:15px;font-weight:700;" id="qty-name"></div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;" id="qty-info"></div>
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-      <button class="btn" onclick="chgQty(-0.5)" style="width:42px;height:42px;padding:0;font-size:22px;">−</button>
-      <div style="flex:1;text-align:center;font-size:26px;font-weight:700;color:var(--accent);" id="qty-val">1</div>
-      <button class="btn" onclick="chgQty(0.5)" style="width:42px;height:42px;padding:0;font-size:22px;">+</button>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px;" id="qty-name"></div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:14px;" id="qty-base-info"></div>
+
+    <!-- Birim seçimi -->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">Birim</div>
+      <div style="display:flex;gap:6px;" id="qty-unit-btns">
+        <button class="unit-btn on" data-unit="porsiyon" onclick="selQtyUnit('porsiyon')" style="flex:1;font-size:12px;padding:8px 4px;">Porsiyon</button>
+        <button class="unit-btn" data-unit="gram" onclick="selQtyUnit('gram')" style="flex:1;font-size:12px;padding:8px 4px;">Gram</button>
+        <button class="unit-btn" data-unit="ml" onclick="selQtyUnit('ml')" style="flex:1;font-size:12px;padding:8px 4px;">ml</button>
+        <button class="unit-btn" data-unit="adet" onclick="selQtyUnit('adet')" style="flex:1;font-size:12px;padding:8px 4px;">Adet</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeQtyModal()" style="flex:1;">İptal</button><button class="btn btn-info" onclick="confirmFood()" style="flex:1;">Ekle ✓</button></div>
+
+    <!-- Miktar girişi -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;" id="qty-amount-lbl">Miktar</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn" onclick="chgQtyAmt(-qtyStep())" style="width:46px;height:46px;padding:0;font-size:24px;flex-shrink:0;">−</button>
+        <input type="number" id="qty-inp" value="1" inputmode="decimal"
+          oninput="onQtyInput(this.value)"
+          style="flex:1;text-align:center;font-size:26px;font-weight:700;color:var(--accent);padding:8px;">
+        <button class="btn" onclick="chgQtyAmt(qtyStep())" style="width:46px;height:46px;padding:0;font-size:24px;flex-shrink:0;">+</button>
+      </div>
+      <!-- Hızlı seçimler -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;" id="qty-presets"></div>
+    </div>
+
+    <!-- Hesaplanan değerler -->
+    <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:var(--r);padding:12px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;color:var(--accent);" id="qty-kcal-big">— kcal</span>
+        <span style="font-size:11px;color:var(--text2);" id="qty-meal-lbl"></span>
+      </div>
+      <div style="font-size:11px;color:var(--text2);" id="qty-macro-detail"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="closeQtyModal()" style="flex:1;">İptal</button>
+      <button class="btn btn-info" onclick="confirmFood()" style="flex:1;padding:12px;">Ekle ✓</button>
+    </div>
   </div>
 </div>
 <!-- Beden ölçüsü -->
@@ -1894,10 +1927,10 @@ function renderNutrition() {
           '<div style="flex:1;min-width:0;">' +
           '<div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+e.name+'</div>' +
           '<div style="font-size:11px;color:var(--text3);">'+
-            'x'+e.qty +
-            (e.p?' · P:'+Math.round(e.p*e.qty)+'g':'') +
-            (e.k?' K:'+Math.round(e.k*e.qty)+'g':'') +
-            (e.y?' Y:'+Math.round(e.y*e.qty)+'g':'') +
+            (e.displayQty || 'x'+e.qty) +
+            (e.p?' · P:'+Math.round(e.p)+'g':'') +
+            (e.k?' K:'+Math.round(e.k)+'g':'') +
+            (e.y?' Y:'+Math.round(e.y)+'g':'') +
           '</div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
@@ -1992,11 +2025,137 @@ function selMeal(m){st.selMeal=m;renderFoodMealTabs();}
 function renderCatTabs(){var all=getAllFoods(),cats=['Tümü','⭐ Özellerim'],seen={};all.forEach(function(f){if(!seen[f.cat]){seen[f.cat]=1;cats.push(f.cat);}});html('food-cat-tabs',cats.map(function(c){return '<div class="tab'+(st.selCat===c?' active':'')+'" onclick="selCat(\''+c+'\')" style="font-size:11px;padding:4px 10px;">'+c+'</div>';}).join(''));}
 function selCat(c){st.selCat=c;renderCatTabs();filterFoods();}
 function filterFoods(){var q=(el('food-q').value||'').toLowerCase(),all=getAllFoods();var f=all.filter(function(x){var mQ=x.name.toLowerCase().indexOf(q)>-1;var mC=st.selCat==='Tümü'||(st.selCat==='⭐ Özellerim'&&x.custom)||x.cat===st.selCat;return mQ&&mC;});html('food-list',f.map(function(x){return '<div class="food-row" onclick="openQtyModal(\''+x.id+'\')"><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;">'+x.name+(x.custom?'<span style="font-size:10px;background:rgba(34,197,94,.15);color:#22c55e;padding:1px 6px;border-radius:100px;">özel</span>':'')+'</div><div style="font-size:11px;color:var(--text3);">'+x.cat+' · P:'+x.p+'g K:'+x.k+'g Y:'+x.y+'g</div></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0;"><div style="font-size:13px;font-weight:700;color:var(--accent);">'+x.cal+' kcal</div>'+(x.custom?'<button onclick="event.stopPropagation();delCustomFood(\''+x.id+'\')" style="background:rgba(239,68,68,.15);border:none;color:#ef4444;border-radius:5px;width:22px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>':'')+'</div></div>';}).join('')||'<div style="padding:20px;text-align:center;color:var(--text2);">Sonuç bulunamadı</div>');}
-function openQtyModal(id){var all=getAllFoods(),found=null;for(var i=0;i<all.length;i++){if(String(all[i].id)===String(id)){found=all[i];break;}}if(!found)return;st.addFood=found;st.addQty=1;el('qty-name').textContent=st.addFood.name;updQtyInfo();el('qty-overlay').classList.add('show');}
-function updQtyInfo(){var f=st.addFood,q=st.addQty;el('qty-info').textContent=Math.round(f.cal*q)+' kcal · P:'+Math.round(f.p*q)+'g K:'+Math.round(f.k*q)+'g Y:'+Math.round(f.y*q)+'g · '+st.selMeal;el('qty-val').textContent=q;}
-function chgQty(d){st.addQty=Math.max(.5,st.addQty+d);updQtyInfo();}
-function closeQtyModal(){el('qty-overlay').classList.remove('show');}
-function confirmFood(){if(!st.addFood)return;var entry={id:st.addFood.id,name:st.addFood.name,cal:st.addFood.cal,p:st.addFood.p,k:st.addFood.k,y:st.addFood.y,qty:st.addQty};var t=today();if(!st.diary[t])st.diary[t]={};if(!st.diary[t][st.selMeal])st.diary[t][st.selMeal]=[];st.diary[t][st.selMeal].push(entry);closeQtyModal();closeFoodModal();saveSt();renderNutrition();}
+var qtyUnit = 'porsiyon'; // porsiyon | gram | ml | adet
+
+function openQtyModal(id) {
+  var all=getAllFoods(), found=null;
+  for(var i=0;i<all.length;i++){ if(String(all[i].id)===String(id)){ found=all[i]; break; } }
+  if(!found) return;
+  st.addFood = found;
+  qtyUnit = 'porsiyon';
+  el('qty-name').textContent = found.name;
+
+  // Baz bilgisi — yiyeceğin 1 porsiyonu ne kadar?
+  var baseDesc = found.qty_base ? found.qty_base + (found.unit||'g') + ' başına' : '1 porsiyon başına';
+  el('qty-base-info').textContent = baseDesc + ' · ' + found.cal + ' kcal';
+
+  // Birim butonlarını sıfırla
+  document.querySelectorAll('#qty-unit-btns .unit-btn').forEach(function(b){ b.classList.remove('on'); });
+  document.querySelector('#qty-unit-btns [data-unit="porsiyon"]').classList.add('on');
+
+  el('qty-inp').value = '1';
+  el('qty-meal-lbl').textContent = st.selMeal;
+  updQtyModal();
+  el('qty-overlay').classList.add('show');
+  setTimeout(function(){ el('qty-inp').select(); }, 300);
+}
+
+function selQtyUnit(unit) {
+  qtyUnit = unit;
+  document.querySelectorAll('#qty-unit-btns .unit-btn').forEach(function(b){ b.classList.remove('on'); });
+  document.querySelector('#qty-unit-btns [data-unit="'+unit+'"]').classList.add('on');
+
+  // Varsayılan miktarı birime göre ayarla
+  var defaults = { porsiyon:'1', gram:'100', ml:'200', adet:'1' };
+  el('qty-inp').value = defaults[unit]||'1';
+
+  // Label
+  var labels = { porsiyon:'Porsiyon sayısı', gram:'Miktar (gram)', ml:'Miktar (ml)', adet:'Adet' };
+  el('qty-amount-lbl').textContent = labels[unit]||'Miktar';
+
+  updQtyModal();
+}
+
+function qtyStep() {
+  if(qtyUnit==='gram') return 10;
+  if(qtyUnit==='ml') return 25;
+  return 0.5;
+}
+
+function chgQtyAmt(d) {
+  var cur = parseFloat(el('qty-inp').value)||0;
+  var nv = Math.max(0.5, Math.round((cur+d)*100)/100);
+  el('qty-inp').value = nv;
+  updQtyModal();
+}
+
+function onQtyInput(v) {
+  updQtyModal();
+}
+
+function getCalcMultiplier() {
+  var f = st.addFood;
+  var amt = parseFloat(el('qty-inp').value)||1;
+  if(qtyUnit === 'porsiyon') return amt;
+  // Gram / ml — 100g baz kabul et (yiyecek veritabanında değerler genellikle 100g için)
+  var base = f.qty_base || 100;
+  if(qtyUnit === 'gram' || qtyUnit === 'ml') return amt / base;
+  if(qtyUnit === 'adet') return amt; // adet = porsiyon
+  return amt;
+}
+
+function updQtyModal() {
+  var f = st.addFood;
+  if(!f) return;
+  var mult = getCalcMultiplier();
+  var cal = Math.round(f.cal * mult);
+  var p = Math.round(f.p * mult * 10)/10;
+  var k = Math.round(f.k * mult * 10)/10;
+  var y = Math.round(f.y * mult * 10)/10;
+
+  el('qty-kcal-big').textContent = cal + ' kcal';
+  el('qty-macro-detail').textContent = 'Protein: '+p+'g · Karb: '+k+'g · Yağ: '+y+'g';
+
+  // Hızlı seçim butonları
+  var presets = [];
+  if(qtyUnit==='porsiyon') presets = [0.5,1,1.5,2,3];
+  else if(qtyUnit==='gram') presets = [50,100,150,200,250,300];
+  else if(qtyUnit==='ml') presets = [100,150,200,250,300,400,500];
+  else if(qtyUnit==='adet') presets = [1,2,3,4,5];
+
+  var curVal = parseFloat(el('qty-inp').value)||0;
+  html('qty-presets', presets.map(function(v){
+    var active = Math.abs(curVal-v)<0.01;
+    return '<button class="btn'+(active?' btn-info':'')+'" onclick="setQtyPreset('+v+')" style="font-size:11px;padding:4px 10px;">'+v+'</button>';
+  }).join(''));
+}
+
+function setQtyPreset(v) {
+  el('qty-inp').value = v;
+  updQtyModal();
+}
+
+function closeQtyModal() { el('qty-overlay').classList.remove('show'); }
+
+function confirmFood() {
+  if(!st.addFood) return;
+  var f = st.addFood;
+  var mult = getCalcMultiplier();
+  var amt = parseFloat(el('qty-inp').value)||1;
+  var unitLabel = qtyUnit==='porsiyon' ? (amt===1?'1 porsiyon':amt+' porsiyon') : amt+' '+qtyUnit;
+
+  var entry = {
+    id: f.id,
+    name: f.name,
+    displayQty: unitLabel,
+    cal: Math.round(f.cal * mult),
+    p: Math.round(f.p * mult * 10)/10,
+    k: Math.round(f.k * mult * 10)/10,
+    y: Math.round(f.y * mult * 10)/10,
+    qty: 1  // zaten çarpıldı, qty=1 olarak sakla
+  };
+
+  var dk = nutDateKey(nutOffset);
+  if(!st.diary[dk]) st.diary[dk]={};
+  if(!st.diary[dk][st.selMeal]) st.diary[dk][st.selMeal]=[];
+  st.diary[dk][st.selMeal].push(entry);
+  closeQtyModal(); closeFoodModal();
+  saveSt(); renderNutrition();
+}
+
+// Eski compat fonksiyonlar (dashboard getDayTotals için)
+function chgQty(d) { chgQtyAmt(d); }
+
 
 // new food
 var nfUnit='gram';
